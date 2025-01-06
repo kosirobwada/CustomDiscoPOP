@@ -287,8 +287,59 @@ class DPOConfig(transformers.TrainingArguments):
     optim: Optional[str] = field(default="rmsprop")
     remove_unused_columns: bool = field(default=False)
     loss_type: Optional[str] = field(default="sigmoid", metadata={"help": ("The loss type for DPO.")})
-
-
+    generate_during_eval: bool = field(
+        default=False,
+        metadata={"help": "Whether to sample and log generations during evaluation step."},
+    )
+    model_adapter_name: Optional[str] = field(
+        default=None,
+        metadata={"help": "Name of the model adapter."}
+    )
+    ref_adapter_name: Optional[str] = field(
+        default=None,
+        metadata={"help": "Name of the reference model adapter."}
+    )
+    reference_free: bool = field(
+        default=False,
+        metadata={"help": "Whether to use reference-free methods for training."}
+    )
+    padding_value: Optional[int] = field(
+        default=-100,
+        metadata={"help": "The padding value to use for padding tokens."}
+    )
+    disable_dropout: bool = field(
+        default=False,
+        metadata={"help": "Whether to disable dropout in the model."}
+    )
+    label_pad_token_id: int = field(
+        default=-100,
+        metadata={"help": "The label pad token id."}
+    )
+    truncation_mode: Optional[str] = field(
+        default="longest_first",  # デフォルト値は長さが長い順に切り捨て
+        metadata={"help": "The truncation mode for padding (e.g., 'longest_first')."}
+    )
+    max_completion_length: Optional[int] = field(
+        default=2048,  # デフォルト値として適当な最大長を設定
+        metadata={"help": "Maximum length for completing sequences."}
+    )
+    precompute_ref_log_probs: Optional[bool] = field(
+        default=False,  # デフォルト値としてFalseを設定
+        metadata={"help": "Whether to precompute the reference log probabilities."}
+    )
+    use_num_logits_to_keep: Optional[int] = field(
+        default=None,  # 適切なデフォルト値を設定（例えば、None）
+        metadata={"help": "Number of logits to keep during the training."}
+    )
+    label_smoothing: Optional[float] = field(
+        default=0.0,  # 適切なデフォルト値を設定
+        metadata={"help": "The value for label smoothing."}
+    )
+    use_weighting: Optional[bool] = field(
+        default=False,  # 適切なデフォルト値を設定
+        metadata={"help": "Whether or not to use weighting for the samples."}
+    )
+    
 @dataclass
 class ORPOConfig(transformers.TrainingArguments):
     max_length: Optional[int] = field(
