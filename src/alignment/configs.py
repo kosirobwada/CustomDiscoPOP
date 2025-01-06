@@ -316,30 +316,46 @@ class DPOConfig(transformers.TrainingArguments):
         metadata={"help": "The label pad token id."}
     )
     truncation_mode: Optional[str] = field(
-        default="longest_first",  # デフォルト値は長さが長い順に切り捨て
+        default="longest_first",
         metadata={"help": "The truncation mode for padding (e.g., 'longest_first')."}
     )
     max_completion_length: Optional[int] = field(
-        default=2048,  # デフォルト値として適当な最大長を設定
+        default=2048,  
         metadata={"help": "Maximum length for completing sequences."}
     )
     precompute_ref_log_probs: Optional[bool] = field(
-        default=False,  # デフォルト値としてFalseを設定
+        default=False, 
         metadata={"help": "Whether to precompute the reference log probabilities."}
     )
     use_num_logits_to_keep: Optional[int] = field(
-        default=None,  # 適切なデフォルト値を設定（例えば、None）
+        default=None,  
         metadata={"help": "Number of logits to keep during the training."}
     )
     label_smoothing: Optional[float] = field(
-        default=0.0,  # 適切なデフォルト値を設定
+        default=0.0, 
         metadata={"help": "The value for label smoothing."}
     )
     use_weighting: Optional[bool] = field(
-        default=False,  # 適切なデフォルト値を設定
+        default=False,  
         metadata={"help": "Whether or not to use weighting for the samples."}
     )
-    
+    f_divergence_type: Optional[str] = field(
+        default="kl", 
+        metadata={"help": "The divergence type for DPO loss calculation (e.g., kl, jsd)."}
+    )
+    f_alpha_divergence_coef: Optional[float] = field(
+        default=0.5, 
+        metadata={"help": "The alpha coefficient for divergence in DPO loss."}
+    )
+    dataset_num_proc: Optional[int] = field(
+        default=4,  
+        metadata={"help": "The number of processes to use for loading datasets."},
+    )
+    sync_ref_model: Optional[bool] = field(
+        default=False,
+        metadata={"help": "Whether to sync the reference model during training."}
+    )
+
 @dataclass
 class ORPOConfig(transformers.TrainingArguments):
     max_length: Optional[int] = field(
