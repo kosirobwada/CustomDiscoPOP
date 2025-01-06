@@ -22,7 +22,7 @@ import torch
 import transformers
 from transformers import AutoModelForCausalLM, set_seed
 
-from alignment import (
+from src.alignment import (
     DataArguments,
     DPOConfig,
     GPOTrainer,

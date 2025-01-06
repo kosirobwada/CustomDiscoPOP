@@ -8,11 +8,12 @@ from datetime import datetime
 import pandas as pd
 import torch
 
-import openai
+from openai import OpenAI
+client = OpenAI()
 import wandb
 
 
-gpt_model = "gpt-4"
+gpt_model = "gpt-4o"
 
 API_MAX_RETRY = 16
 API_RETRY_SLEEP = 10
@@ -199,8 +200,24 @@ def validate_code(code: str) -> bool:
 
 def train_gpo(info, config):
     # STORE CODE
-    with open(f"recipes/zephyr-{config['B_PARAMS']}b-gemma/gpo/tests.json", "r") as f:
-        tests = json.load(f)
+    json_path = f"recipes/zephyr-{config['B_PARAMS']}b-gemma/gpo/tests.json"
+
+    # JSON ファイルの存在と内容を確認
+    if not os.path.exists(json_path):
+        print(f"Warning: {json_path} does not exist. Creating a new file.")
+        tests = []  # ファイルが存在しない場合は空のリストを初期化
+    else:
+        with open(json_path, "r") as f:
+            try:
+                content = f.read().strip()  # ファイル内容を取得
+                if content:  # 内容が空でない場合
+                    tests = json.loads(content)  # JSON を読み込む
+                else:
+                    print(f"Warning: {json_path} is empty. Initializing as empty list.")
+                    tests = []  # 空ファイルの場合は空リストを初期化
+            except json.JSONDecodeError as e:
+                print(f"Error: Invalid JSON format in {json_path}: {e}")
+                tests = []  # 不正な形式の場合も空リストを初期化
     info["name"] = info["name"].lower().replace(" ", "_")
     for test in tests:  # MAKE NAME UNIQUE.
         if test["name"] == info["name"]:
@@ -458,21 +475,14 @@ Please generate the next one.
         # GENERATE CODE
         if not args.do_baselines:
             for _ in range(API_MAX_RETRY):
-                try:
-                    completion = openai.ChatCompletion.create(
-                        engine=gpt_model,
-                        messages=messages,
-                        max_tokens=2048,
-                        n=1,
-                        response_format={"type": "json_object"},
-                    ).choices[0]
-                    break
-                except openai.error.OpenAIError as e:
-                    print(type(e), e)
-                    time.sleep(API_RETRY_SLEEP)
-                except openai.error.InvalidRequestError as e:
-                    print(type(e), e)
-                    break
+                completion = client.chat.completions.create(
+                    model=gpt_model,
+                    messages=messages,
+                    max_tokens=2048,
+                    n=1,
+                    response_format={"type": "json_object"},
+                ).choices[0]
+                break
             t_completion = time.time()
 
             messages.append(completion.message.to_dict())

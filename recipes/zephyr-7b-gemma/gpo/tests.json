@@ -1,0 +1,266 @@
+[
+    {
+        "name": "focal_loss",
+        "code": "def focal_loss(\n    self,\n    policy_chosen_logps: torch.FloatTensor,\n    policy_rejected_logps: torch.FloatTensor,\n    reference_chosen_logps: torch.FloatTensor,\n    reference_rejected_logps: torch.FloatTensor,\n) -> torch.FloatTensor:\n    import torch.nn.functional as F\n    gamma = 2.0\n    pi_logratios = policy_chosen_logps - policy_rejected_logps\n    ref_logratios = reference_chosen_logps - reference_rejected_logps\n    logits = pi_logratios - ref_logratios\n    probs = F.sigmoid(self.beta * logits)\n    losses = -((1 - probs) ** gamma) * probs.log()\n    return losses"
+    },
+    {
+        "name": "exponential_loss",
+        "code": "def exponential_loss(\n    self,\n    policy_chosen_logps: torch.FloatTensor,\n    policy_rejected_logps: torch.FloatTensor,\n    reference_chosen_logps: torch.FloatTensor,\n    reference_rejected_logps: torch.FloatTensor,\n) -> torch.FloatTensor:\n    pi_logratios = policy_chosen_logps - policy_rejected_logps\n    ref_logratios = reference_chosen_logps - reference_rejected_logps\n    logits = pi_logratios - ref_logratios\n    losses = torch.exp(-self.beta * logits)\n    return losses"
+    },
+    {
+        "name": "quadratic_loss",
+        "code": "def quadratic_loss(\n    self,\n    policy_chosen_logps: torch.FloatTensor,\n    policy_rejected_logps: torch.FloatTensor,\n    reference_chosen_logps: torch.FloatTensor,\n    reference_rejected_logps: torch.FloatTensor,\n) -> torch.FloatTensor:\n    pi_logratios = policy_chosen_logps - policy_rejected_logps\n    ref_logratios = reference_chosen_logps - reference_rejected_logps\n    logits = pi_logratios - ref_logratios\n    losses = (self.beta * logits) ** 2\n    return losses"
+    },
+    {
+        "name": "fixed_custom_binary_cross_entropy_loss",
+        "code": "def fixed_custom_binary_cross_entropy_loss(\n    self,\n    policy_chosen_logps: torch.FloatTensor,\n    policy_rejected_logps: torch.FloatTensor,\n    reference_chosen_logps: torch.FloatTensor,\n    reference_rejected_logps: torch.FloatTensor,\n) -> torch.FloatTensor:\n    pi_logratios = policy_chosen_logps - policy_rejected_logps\n    ref_logratios = reference_chosen_logps - reference_rejected_logps\n    logits = pi_logratios - ref_logratios\n    probabilities = torch.sigmoid(self.beta * logits)\n    targets = torch.ones_like(probabilities)\n    losses = -(targets * torch.log(probabilities) + (1 - targets) * torch.log(1 - probabilities))\n    return losses\n"
+    },
+    {
+        "name": "stabilized_binary_cross_entropy_loss",
+        "code": "def stabilized_binary_cross_entropy_loss(\n    self,\n    policy_chosen_logps: torch.FloatTensor,\n    policy_rejected_logps: torch.FloatTensor,\n    reference_chosen_logps: torch.FloatTensor,\n    reference_rejected_logps: torch.FloatTensor,\n) -> torch.FloatTensor:\n    epsilon = 1e-12  # small value to prevent log(0)\n    pi_logratios = policy_chosen_logps - policy_rejected_logps\n    ref_logratios = reference_chosen_logps - reference_rejected_logps\n    logits = pi_logratios - ref_logratios\n    probabilities = torch.sigmoid(self.beta * logits)\n    targets = torch.ones_like(probabilities)\n    probabilities = probabilities.clamp(min=epsilon, max=1-epsilon)  # prevent log(0)\n    losses = -(targets * torch.log(probabilities) + (1 - targets) * torch.log(1 - probabilities))\n    return losses\n"
+    },
+    {
+        "name": "squared_hinge_loss",
+        "code": "def squared_hinge_loss(\n    self,\n    policy_chosen_logps: torch.FloatTensor,\n    policy_rejected_logps: torch.FloatTensor,\n    reference_chosen_logps: torch.FloatTensor,\n    reference_rejected_logps: torch.FloatTensor,\n) -> torch.FloatTensor:\n    pi_logratios = policy_chosen_logps - policy_rejected_logps\n    ref_logratios = reference_chosen_logps - reference_rejected_logps\n    logits = pi_logratios - ref_logratios\n    margins = 1 - self.beta * logits\n    losses = torch.pow(torch.relu(margins), 2)\n    return losses\n    "
+    },
+    {
+        "name": "contrastive_divergence_loss",
+        "code": "def contrastive_divergence_loss(\n    self,\n    policy_chosen_logps: torch.FloatTensor,\n    policy_rejected_logps: torch.FloatTensor,\n    reference_chosen_logps: torch.FloatTensor,\n    reference_rejected_logps: torch.FloatTensor,\n) -> torch.FloatTensor:\n    pi_logratios = policy_chosen_logps - policy_rejected_logps\n    ref_logratios = reference_chosen_logps - reference_rejected_logps\n    logits = pi_logratios - ref_logratios\n    positive_loss = torch.square(self.beta * torch.relu(-logits))\n    negative_loss = torch.square(self.beta * torch.relu(logits))\n    return positive_loss + negative_loss\n    "
+    },
+    {
+        "name": "margin_ranking_loss",
+        "code": "def margin_ranking_loss(\n    self,\n    policy_chosen_logps: torch.FloatTensor,\n    policy_rejected_logps: torch.FloatTensor,\n    reference_chosen_logps: torch.FloatTensor,\n    reference_rejected_logps: torch.FloatTensor,\n) -> torch.FloatTensor:\n    pi_logratios = policy_chosen_logps - policy_rejected_logps\n    ref_logratios = reference_chosen_logps - reference_rejected_logps\n    logits = pi_logratios - ref_logratios\n    # Use a margin of 1 for the ranking loss\n    margin = 1.0\n    losses = torch.relu(margin - self.beta * logits)\n    return losses\n    "
+    },
+    {
+        "name": "mean_squared_preference_loss",
+        "code": "def mean_squared_preference_loss(\n    self,\n    policy_chosen_logps: torch.FloatTensor,\n    policy_rejected_logps: torch.FloatTensor,\n    reference_chosen_logps: torch.FloatTensor,\n    reference_rejected_logps: torch.FloatTensor,\n) -> torch.FloatTensor:\n    target_diff = policy_chosen_logps - policy_rejected_logps\n    reference_diff = reference_chosen_logps - reference_rejected_logps\n    diff = target_diff - reference_diff\n    losses = (diff - self.beta) ** 2\n    return losses\n"
+    },
+    {
+        "name": "huber_preference_loss",
+        "code": "def huber_preference_loss(\n    self,\n    policy_chosen_logps: torch.FloatTensor,\n    policy_rejected_logps: torch.FloatTensor,\n    reference_chosen_logps: torch.FloatTensor,\n    reference_rejected_logps: torch.FloatTensor,\n) -> torch.FloatTensor:\n    target_diff = policy_chosen_logps - policy_rejected_logps\n    reference_diff = reference_chosen_logps - reference_rejected_logps\n    diff = target_diff - reference_diff\n    delta = 1.0\n    abs_diff = torch.abs(diff - self.beta)\n    quadratic = torch.minimum(abs_diff, torch.tensor(delta))\n    linear = abs_diff - quadratic\n    losses = 0.5 * quadratic ** 2 + delta * linear\n    return losses\n"
+    },
+    {
+        "name": "log_sum_exp_loss",
+        "code": "def log_sum_exp_loss(\n    self,\n    policy_chosen_logps: torch.FloatTensor,\n    policy_rejected_logps: torch.FloatTensor,\n    reference_chosen_logps: torch.FloatTensor,\n    reference_rejected_logps: torch.FloatTensor,\n) -> torch.FloatTensor:\n    temperature = 0.1  # A hyperparameter for controlling the smoothness\n    pi_logratios = policy_chosen_logps - policy_rejected_logps\n    ref_logratios = reference_chosen_logps - reference_rejected_logps\n    logits = pi_logratios - ref_logratios\n    scaled_logits = logits / temperature\n    losses = torch.logsumexp(torch.stack([-scaled_logits, torch.zeros_like(scaled_logits)]), dim=0)\n    return losses\n"
+    },
+    {
+        "name": "margin_ranking_loss_11",
+        "code": "def margin_ranking_loss(\n    self,\n    policy_chosen_logps: torch.FloatTensor,\n    policy_rejected_logps: torch.FloatTensor,\n    reference_chosen_logps: torch.FloatTensor,\n    reference_rejected_logps: torch.FloatTensor,\n) -> torch.FloatTensor:\n    margin = 1.0  # This is a hyperparameter setting the desired margin\n    pi_logratios = policy_chosen_logps - policy_rejected_logps\n    ref_logratios = reference_chosen_logps - reference_rejected_logps\n    logits = pi_logratios - ref_logratios\n    # Margin ranking loss is max(0, -y * (x1 - x2) + margin), where y is expected to be 1 here\n    losses = torch.relu(-self.beta * logits + margin)\n    return losses\n"
+    },
+    {
+        "name": "pairwise_cross_entropy_loss",
+        "code": "def pairwise_cross_entropy_loss(\n    self,\n    policy_chosen_logps: torch.FloatTensor,\n    policy_rejected_logps: torch.FloatTensor,\n    reference_chosen_logps: torch.FloatTensor,\n    reference_rejected_logps: torch.FloatTensor,\n) -> torch.FloatTensor:\n    pi_logratios = policy_chosen_logps - policy_rejected_logps\n    ref_logratios = reference_chosen_logps - reference_rejected_logps\n    logits = pi_logratios - ref_logratios\n    # We use a binary cross-entropy approach here: -y*log(sigmoid(x)) - (1-y)*log(1-sigmoid(x)) with y=1\n    probs = torch.sigmoid(self.beta * logits)\n    losses = -torch.log(probs)\n    return losses\n"
+    },
+    {
+        "name": "tanh_squared_loss",
+        "code": "def tanh_squared_loss(\n    self,\n    policy_chosen_logps: torch.FloatTensor,\n    policy_rejected_logps: torch.FloatTensor,\n    reference_chosen_logps: torch.FloatTensor,\n    reference_rejected_logps: torch.FloatTensor,\n) -> torch.FloatTensor:\n    pi_logratios = policy_chosen_logps - policy_rejected_logps\n    ref_logratios = reference_chosen_logps - reference_rejected_logps\n    logits = pi_logratios - ref_logratios\n    transformed_logits = torch.tanh(self.beta * logits)\n    losses = (1 - transformed_logits) ** 2\n    return losses\n"
+    },
+    {
+        "name": "exponential_loss_14",
+        "code": "def exponential_loss(\n    self,\n    policy_chosen_logps: torch.FloatTensor,\n    policy_rejected_logps: torch.FloatTensor,\n    reference_chosen_logps: torch.FloatTensor,\n    reference_rejected_logps: torch.FloatTensor,\n) -> torch.FloatTensor:\n    pi_logratios = policy_chosen_logps - policy_rejected_logps\n    ref_logratios = reference_chosen_logps - reference_rejected_logps\n    logits = pi_logratios - ref_logratios\n    losses = torch.exp(-self.beta * logits)\n    return losses\n"
+    },
+    {
+        "name": "sigmoid_absolute_loss",
+        "code": "def sigmoid_absolute_loss(\n    self,\n    policy_chosen_logps: torch.FloatTensor,\n    policy_rejected_logps: torch.FloatTensor,\n    reference_chosen_logps: torch.FloatTensor,\n    reference_rejected_logps: torch.FloatTensor,\n) -> torch.FloatTensor:\n    pi_logratios = policy_chosen_logps - policy_rejected_logps\n    ref_logratios = reference_chosen_logps - reference_rejected_logps\n    logits = pi_logratios - ref_logratios\n    bounded_logits = torch.sigmoid(self.beta * logits)\n    losses = torch.abs(1 - bounded_logits)\n    return losses\n"
+    },
+    {
+        "name": "exponential_loss_16",
+        "code": "def exponential_loss(\n    self,\n    policy_chosen_logps: torch.FloatTensor,\n    policy_rejected_logps: torch.FloatTensor,\n    reference_chosen_logps: torch.FloatTensor,\n    reference_rejected_logps: torch.FloatTensor,\n) -> torch.FloatTensor:\n    pi_logratios = policy_chosen_logps - policy_rejected_logps\n    ref_logratios = reference_chosen_logps - reference_rejected_logps\n    logits = pi_logratios - ref_logratios\n    losses = torch.exp(-self.beta * logits)\n    return losses\n"
+    },
+    {
+        "name": "focal_loss_clean",
+        "code": "def focal_loss(\n    self,\n    policy_chosen_logps: torch.FloatTensor,\n    policy_rejected_logps: torch.FloatTensor,\n    reference_chosen_logps: torch.FloatTensor,\n    reference_rejected_logps: torch.FloatTensor,\n) -> torch.FloatTensor:\n    pi_logratios = policy_chosen_logps - policy_rejected_logps\n    ref_logratios = reference_chosen_logps - reference_rejected_logps\n    logits = pi_logratios - ref_logratios\n    probas = torch.sigmoid(self.beta * logits)\n    focal_term = (1 - probas) ** 2  # Gamma = 2 in focal loss\n    losses = focal_term * -torch.log(probas)\n    return losses\n"
+    },
+    {
+        "name": "torch_focal_loss",
+        "code": "def torch_focal_loss(\n    self,\n    policy_chosen_logps: torch.FloatTensor,\n    policy_rejected_logps: torch.FloatTensor,\n    reference_chosen_logps: torch.FloatTensor,\n    reference_rejected_logps: torch.FloatTensor,\n) -> torch.FloatTensor:\n    gamma = 2.0  # Focusing parameter from the focal loss\n    pi_logratios = policy_chosen_logps - policy_rejected_logps\n    ref_logratios = reference_chosen_logps - reference_rejected_logps\n    logits = pi_logratios - ref_logratios\n    log_prob = torch.nn.functional.logsigmoid(self.beta * logits)\n    prob = torch.exp(log_prob)\n    focal_weight = (1 - prob).pow(gamma)\n    losses = -focal_weight * log_prob\n    return losses\n"
+    },
+    {
+        "name": "log_prob_mse_loss",
+        "code": "def log_prob_mse_loss(\n    self,\n    policy_chosen_logps: torch.FloatTensor,\n    policy_rejected_logps: torch.FloatTensor,\n    reference_chosen_logps: torch.FloatTensor,\n    reference_rejected_logps: torch.FloatTensor,\n) -> torch.FloatTensor:\n    pi_logratios = policy_chosen_logps - policy_rejected_logps\n    ref_logratios = reference_chosen_logps - reference_rejected_logps\n    logits = pi_logratios - ref_logratios\n    log_prob = torch.nn.functional.logsigmoid(self.beta * logits)\n    losses = (log_prob - 1) ** 2  # Squared error targeting positive log probability for preferred\n    return losses\n"
+    },
+    {
+        "name": "exponential_margin_loss",
+        "code": "def exponential_margin_loss(\n    self,\n    policy_chosen_logps: torch.FloatTensor,\n    policy_rejected_logps: torch.FloatTensor,\n    reference_chosen_logps: torch.FloatTensor,\n    reference_rejected_logps: torch.FloatTensor,\n) -> torch.FloatTensor:\n    pi_logratios = policy_chosen_logps - policy_rejected_logps\n    ref_logratios = reference_chosen_logps - reference_rejected_logps\n    margin = pi_logratios - ref_logratios\n    losses = torch.exp(-self.beta * margin)\n    return losses\n"
+    },
+    {
+        "name": "squared_hinge_loss_21",
+        "code": "def squared_hinge_loss(\n    self,\n    policy_chosen_logps: torch.FloatTensor,\n    policy_rejected_logps: torch.FloatTensor,\n    reference_chosen_logps: torch.FloatTensor,\n    reference_rejected_logps: torch.FloatTensor,\n) -> torch.FloatTensor:\n    pi_logratios = policy_chosen_logps - policy_rejected_logps\n    ref_logratios = reference_chosen_logps - reference_rejected_logps\n    margin = pi_logratios - ref_logratios\n    losses = torch.relu(1 - self.beta * margin) ** 2\n    return losses\n"
+    },
+    {
+        "name": "contrastive_loss",
+        "code": "def contrastive_loss(\n    self,\n    policy_chosen_logps: torch.FloatTensor,\n    policy_rejected_logps: torch.FloatTensor,\n    reference_chosen_logps: torch.FloatTensor,\n    reference_rejected_logps: torch.FloatTensor,\n) -> torch.FloatTensor:\n    pi_logratios = policy_chosen_logps - policy_rejected_logps\n    ref_logratios = reference_chosen_logps - reference_rejected_logps\n    margin = pi_logratios - ref_logratios\n    losses = torch.pow(margin, 2)\n    return losses\n"
+    },
+    {
+        "name": "focal_loss_variant",
+        "code": "def focal_loss_variant(\n    self,\n    policy_chosen_logps: torch.FloatTensor,\n    policy_rejected_logps: torch.FloatTensor,\n    reference_chosen_logps: torch.FloatTensor,\n    reference_rejected_logps: torch.FloatTensor,\n) -> torch.FloatTensor:\n    gamma = 2.0  # Focal adjusting factor (gamma > 0)\n    pi_logratios = policy_chosen_logps - policy_rejected_logps\n    ref_logratios = reference_chosen_logps - reference_rejected_logps\n    logits = pi_logratios - ref_logratios\n    probs = torch.sigmoid(self.beta * logits)\n    focal_weight = (1 - probs) ** gamma\n    losses = -focal_weight * torch.log(probs)\n    return losses\n"
+    },
+    {
+        "name": "exponential_loss_24",
+        "code": "def exponential_loss(\n    self,\n    policy_chosen_logps: torch.FloatTensor,\n    policy_rejected_logps: torch.FloatTensor,\n    reference_chosen_logps: torch.FloatTensor,\n    reference_rejected_logps: torch.FloatTensor,\n) -> torch.FloatTensor:\n    pi_logratios = policy_chosen_logps - policy_rejected_logps\n    ref_logratios = reference_chosen_logps - reference_rejected_logps\n    logits = pi_logratios - ref_logratios\n    losses = torch.exp(-self.beta * logits)\n    return losses\n"
+    },
+    {
+        "name": "hinge_squared_loss",
+        "code": "def hinge_squared_loss(\n    self,\n    policy_chosen_logps: torch.FloatTensor,\n    policy_rejected_logps: torch.FloatTensor,\n    reference_chosen_logps: torch.FloatTensor,\n    reference_rejected_logps: torch.FloatTensor,\n) -> torch.FloatTensor:\n    pi_logratios = policy_chosen_logps - policy_rejected_logps\n    ref_logratios = reference_chosen_logps - reference_rejected_logps\n    logits = pi_logratios - ref_logratios\n    hinge_losses = torch.relu(1 - self.beta * logits)\n    losses = hinge_losses ** 2\n    return losses\n"
+    },
+    {
+        "name": "modified_huber_loss",
+        "code": "def modified_huber_loss(\n    self,\n    policy_chosen_logps: torch.FloatTensor,\n    policy_rejected_logps: torch.FloatTensor,\n    reference_chosen_logps: torch.FloatTensor,\n    reference_rejected_logps: torch.FloatTensor,\n) -> torch.FloatTensor:\n    delta = 1.0  # Huber loss delta\n    pi_logratios = policy_chosen_logps - policy_rejected_logps\n    ref_logratios = reference_chosen_logps - reference_rejected_logps\n    logits = pi_logratios - ref_logratios\n    abs_loss = torch.abs(1 - self.beta * logits)\n    quadratic_part = torch.minimum(abs_loss, torch.tensor(delta))\n    linear_part = abs_loss - quadratic_part\n    losses = 0.5 * quadratic_part ** 2 + delta * linear_part\n    return losses\n"
+    },
+    {
+        "name": "margin_ranking_loss_27",
+        "code": "def margin_ranking_loss(\n    self,\n    policy_chosen_logps: torch.FloatTensor,\n    policy_rejected_logps: torch.FloatTensor,\n    reference_chosen_logps: torch.FloatTensor,\n    reference_rejected_logps: torch.FloatTensor,\n) -> torch.FloatTensor:\n    margin = 1.0  # Desired margin between chosen and rejected\n    pi_logratios = policy_chosen_logps - policy_rejected_logps\n    ref_logratios = reference_chosen_logps - reference_rejected_logps\n    logits = pi_logratios - ref_logratios\n    losses = torch.relu(margin - self.beta * logits)\n    return losses\n"
+    },
+    {
+        "name": "contrastive_loss_28",
+        "code": "def contrastive_loss(\n    self,\n    policy_chosen_logps: torch.FloatTensor,\n    policy_rejected_logps: torch.FloatTensor,\n    reference_chosen_logps: torch.FloatTensor,\n    reference_rejected_logps: torch.FloatTensor,\n) -> torch.FloatTensor:\n    margin = 1.0\n    pi_logratios = policy_chosen_logps - policy_rejected_logps\n    ref_logratios = reference_chosen_logps - reference_rejected_logps\n    logits = pi_logratios - ref_logratios\n    losses = torch.max(torch.zeros_like(logits), margin - self.beta * logits)\n    return losses\n"
+    },
+    {
+        "name": "svm_rank_loss",
+        "code": "def svm_rank_loss(\n    self,\n    policy_chosen_logps: torch.FloatTensor,\n    policy_rejected_logps: torch.FloatTensor,\n    reference_chosen_logps: torch.FloatTensor,\n    reference_rejected_logps: torch.FloatTensor,\n) -> torch.FloatTensor:\n    margin = 1.0\n    pi_logratios = policy_chosen_logps - policy_rejected_logps\n    ref_logratios = reference_chosen_logps - reference_rejected_logps\n    logits = pi_logratios - ref_logratios\n    losses = torch.relu(margin - logits)\n    return losses\n"
+    },
+    {
+        "name": "single_step_margin_loss",
+        "code": "def single_step_margin_loss(\n    self,\n    policy_chosen_logps: torch.FloatTensor,\n    policy_rejected_logps: torch.FloatTensor,\n    reference_chosen_logps: torch.FloatTensor,\n    reference_rejected_logps: torch.FloatTensor,\n) -> torch.FloatTensor:\n    margin = 1.0\n    pi_logratios = policy_chosen_logps - policy_rejected_logps\n    ref_logratios = reference_chosen_logps - reference_rejected_logps\n    logits = pi_logratios - ref_logratios\n    # Apply log-sigmoid loss with margin consideration\n    losses = -torch.log(torch.sigmoid(self.beta * logits + margin))\n    return losses\n"
+    },
+    {
+        "name": "ranknet_loss",
+        "code": "def ranknet_loss(\n    self,\n    policy_chosen_logps: torch.FloatTensor,\n    policy_rejected_logps: torch.FloatTensor,\n    reference_chosen_logps: torch.FloatTensor,\n    reference_rejected_logps: torch.FloatTensor,\n) -> torch.FloatTensor:\n    pi_logratios = policy_chosen_logps - policy_rejected_logps\n    ref_logratios = reference_chosen_logps - reference_rejected_logps\n    logits = pi_logratios - ref_logratios\n    # RankNet loss, which is based on pairwise comparisons in the output space\n    losses = -torch.log(torch.sigmoid(self.beta * logits))\n    return losses\n"
+    },
+    {
+        "name": "contrastive_loss_32",
+        "code": "def contrastive_loss(\n    self,\n    policy_chosen_logps: torch.FloatTensor,\n    policy_rejected_logps: torch.FloatTensor,\n    reference_chosen_logps: torch.FloatTensor,\n    reference_rejected_logps: torch.FloatTensor,\n) -> torch.FloatTensor:\n    margin = 1.0\n    pi_logratios = policy_chosen_logps - policy_rejected_logps\n    ref_logratios = reference_chosen_logps - reference_rejected_logps\n    logits = pi_logratios - ref_logratios\n    # Contrastive loss to separate the logit of chosen and rejected completions\n    losses = 0.5 * ((logits) ** 2) + 0.5 * ((torch.relu(margin - logits)) ** 2)\n    return losses\n"
+    },
+    {
+        "name": "per_sample_symmetric_kl_loss",
+        "code": "def per_sample_symmetric_kl_loss(\n    self,\n    policy_chosen_logps: torch.FloatTensor,\n    policy_rejected_logps: torch.FloatTensor,\n    reference_chosen_logps: torch.FloatTensor,\n    reference_rejected_logps: torch.FloatTensor,\n) -> torch.FloatTensor:\n    epsilon = 1e-10\n    pi_probs_chosen = torch.exp(policy_chosen_logps)\n    pi_probs_rejected = torch.exp(policy_rejected_logps)\n    ref_probs_chosen = torch.exp(reference_chosen_logps)\n    ref_probs_rejected = torch.exp(reference_rejected_logps)\n\n    kl_p_q_chosen = pi_probs_chosen * (torch.log(pi_probs_chosen + epsilon) - torch.log(ref_probs_chosen + epsilon))\n    kl_q_p_chosen = ref_probs_chosen * (torch.log(ref_probs_chosen + epsilon) - torch.log(pi_probs_chosen + epsilon))\n\n    kl_p_q_rejected = pi_probs_rejected * (torch.log(pi_probs_rejected + epsilon) - torch.log(ref_probs_rejected + epsilon))\n    kl_q_p_rejected = ref_probs_rejected * (torch.log(ref_probs_rejected + epsilon) - torch.log(pi_probs_rejected + epsilon))\n\n    symmetric_kl_chosen = kl_p_q_chosen + kl_q_p_chosen\n    symmetric_kl_rejected = kl_p_q_rejected + kl_q_p_rejected\n\n    losses = (symmetric_kl_chosen - symmetric_kl_rejected)\n    return losses\n"
+    },
+    {
+        "name": "squared_hinge_loss_34",
+        "code": "def squared_hinge_loss(\n    self,\n    policy_chosen_logps: torch.FloatTensor,\n    policy_rejected_logps: torch.FloatTensor,\n    reference_chosen_logps: torch.FloatTensor,\n    reference_rejected_logps: torch.FloatTensor,\n) -> torch.FloatTensor:\n    pi_logratios = policy_chosen_logps - policy_rejected_logps\n    ref_logratios = reference_chosen_logps - reference_rejected_logps\n    logits = pi_logratios - ref_logratios\n    losses = torch.relu(1 - self.beta * logits) ** 2\n    return losses\n"
+    },
+    {
+        "name": "huber_loss",
+        "code": "def huber_loss(\n    self,\n    policy_chosen_logps: torch.FloatTensor,\n    policy_rejected_logps: torch.FloatTensor,\n    reference_chosen_logps: torch.FloatTensor,\n    reference_rejected_logps: torch.FloatTensor,\n) -> torch.FloatTensor:\n    delta = 1.0  # Huber loss parameter\n    pi_logratios = policy_chosen_logps - policy_rejected_logps\n    ref_logratios = reference_chosen_logps - reference_rejected_logps\n    logits = pi_logratios - ref_logratios\n    diff = 1 - self.beta * logits\n    condition = torch.abs(diff) < delta\n    losses = torch.where(\n        condition,\n        0.5 * diff**2,\n        delta * (torch.abs(diff) - 0.5 * delta)\n    )\n    return losses\n"
+    },
+    {
+        "name": "mse_margin_loss",
+        "code": "def mse_margin_loss(\n    self,\n    policy_chosen_logps: torch.FloatTensor,\n    policy_rejected_logps: torch.FloatTensor,\n    reference_chosen_logps: torch.FloatTensor,\n    reference_rejected_logps: torch.FloatTensor,\n) -> torch.FloatTensor:\n    target_margin = 1.0\n    pi_logratios = policy_chosen_logps - policy_rejected_logps\n    ref_logratios = reference_chosen_logps - reference_rejected_logps\n    logits = pi_logratios - ref_logratios\n    losses = (self.beta * logits - target_margin) ** 2\n    return losses\n"
+    },
+    {
+        "name": "exponential_margin_loss_37",
+        "code": "def exponential_margin_loss(\n    self,\n    policy_chosen_logps: torch.FloatTensor,\n    policy_rejected_logps: torch.FloatTensor,\n    reference_chosen_logps: torch.FloatTensor,\n    reference_rejected_logps: torch.FloatTensor,\n) -> torch.FloatTensor:\n    pi_logratios = policy_chosen_logps - policy_rejected_logps\n    ref_logratios = reference_chosen_logps - reference_rejected_logps\n    logits = pi_logratios - ref_logratios\n    losses = torch.exp(-self.beta * logits)\n    return losses\n"
+    },
+    {
+        "name": "focal_loss_38",
+        "code": "def focal_loss(\n    self,\n    policy_chosen_logps: torch.FloatTensor,\n    policy_rejected_logps: torch.FloatTensor,\n    reference_chosen_logps: torch.FloatTensor,\n    reference_rejected_logps: torch.FloatTensor,\n) -> torch.FloatTensor:\n    gamma = 2.0  # Focal loss focusing parameter\n    pi_logratios = policy_chosen_logps - policy_rejected_logps\n    ref_logratios = reference_chosen_logps - reference_rejected_logps\n    logits = pi_logratios - ref_logratios\n    probabilities = torch.sigmoid(self.beta * logits)\n    losses = -(1 - probabilities) ** gamma * torch.log(probabilities + 1e-8)\n    return losses\n"
+    },
+    {
+        "name": "focal_log_loss",
+        "code": "def focal_log_loss(\n    self,\n    policy_chosen_logps: torch.FloatTensor,\n    policy_rejected_logps: torch.FloatTensor,\n    reference_chosen_logps: torch.FloatTensor,\n    reference_rejected_logps: torch.FloatTensor,\n) -> torch.FloatTensor:\n    gamma = 2.0\n    pi_logratios = policy_chosen_logps - policy_rejected_logps\n    ref_logratios = reference_chosen_logps - reference_rejected_logps\n    logits = pi_logratios - ref_logratios\n    probas = torch.sigmoid(self.beta * logits)\n    focal_weight = (1 - probas) ** gamma\n    losses = -focal_weight * torch.nn.functional.logsigmoid(self.beta * logits)\n    return losses\n    "
+    },
+    {
+        "name": "temperature_scaled_cross_entropy_loss",
+        "code": "def temperature_scaled_cross_entropy_loss(\n    self,\n    policy_chosen_logps: torch.FloatTensor,\n    policy_rejected_logps: torch.FloatTensor,\n    reference_chosen_logps: torch.FloatTensor,\n    reference_rejected_logps: torch.FloatTensor,\n) -> torch.FloatTensor:\n    temperature = 2.0  # temperature scaling\n    pi_logratios = policy_chosen_logps - policy_rejected_logps\n    ref_logratios = reference_chosen_logps - reference_rejected_logps\n    logits = (pi_logratios - ref_logratios) / temperature\n    losses = -torch.nn.functional.logsigmoid(self.beta * logits)\n    return losses\n    "
+    },
+    {
+        "name": "huber_style_loss",
+        "code": "def huber_style_loss(\n    self,\n    policy_chosen_logps: torch.FloatTensor,\n    policy_rejected_logps: torch.FloatTensor,\n    reference_chosen_logps: torch.FloatTensor,\n    reference_rejected_logps: torch.FloatTensor,\n) -> torch.FloatTensor:\n    delta = 1.0  # delta parameter for Huber loss\n    pi_logratios = policy_chosen_logps - policy_rejected_logps\n    ref_logratios = reference_chosen_logps - reference_rejected_logps\n    errors = pi_logratios - ref_logratios\n    abs_errors = torch.abs(errors)\n    quadratic_loss = 0.5 * (errors ** 2)\n    linear_loss = delta * (abs_errors - 0.5 * delta)\n    loss = torch.where(abs_errors < delta, quadratic_loss, linear_loss)\n    return self.beta * loss\n    "
+    },
+    {
+        "name": "tanh_margin_loss",
+        "code": "def tanh_margin_loss(\n    self,\n    policy_chosen_logps: torch.FloatTensor,\n    policy_rejected_logps: torch.FloatTensor,\n    reference_chosen_logps: torch.FloatTensor,\n    reference_rejected_logps: torch.FloatTensor,\n) -> torch.FloatTensor:\n    margin = 0.1\n    pi_logratios = policy_chosen_logps - policy_rejected_logps\n    ref_logratios = reference_chosen_logps - reference_rejected_logps\n    logits = pi_logratios - ref_logratios\n    losses = -torch.tanh(self.beta * (logits - margin))\n    return losses\n"
+    },
+    {
+        "name": "svm_margin_loss",
+        "code": "def svm_margin_loss(\n    self,\n    policy_chosen_logps: torch.FloatTensor,\n    policy_rejected_logps: torch.FloatTensor,\n    reference_chosen_logps: torch.FloatTensor,\n    reference_rejected_logps: torch.FloatTensor,\n) -> torch.FloatTensor:\n    pi_logratios = policy_chosen_logps - policy_rejected_logps\n    ref_logratios = reference_chosen_logps - reference_rejected_logps\n    logits = pi_logratios - ref_logratios\n    margin = 1.0\n    hinge_loss = torch.maximum(torch.zeros_like(logits), self.beta * (margin - logits))\n    return hinge_loss\n"
+    },
+    {
+        "name": "kl_divergence_loss",
+        "code": "def kl_divergence_loss(\n    self,\n    policy_chosen_logps: torch.FloatTensor,\n    policy_rejected_logps: torch.FloatTensor,\n    reference_chosen_logps: torch.FloatTensor,\n    reference_rejected_logps: torch.FloatTensor,\n) -> torch.FloatTensor:\n    chosen_kl = (policy_chosen_logps - reference_chosen_logps).exp() * (policy_chosen_logps - reference_chosen_logps)\n    rejected_kl = (policy_rejected_logps - reference_rejected_logps).exp() * (policy_rejected_logps - reference_rejected_logps)\n    losses = chosen_kl - rejected_kl\n    return losses\n"
+    },
+    {
+        "name": "focal_loss_45",
+        "code": "def focal_loss(\n    self,\n    policy_chosen_logps: torch.FloatTensor,\n    policy_rejected_logps: torch.FloatTensor,\n    reference_chosen_logps: torch.FloatTensor,\n    reference_rejected_logps: torch.FloatTensor,\n) -> torch.FloatTensor:\n    gamma = 2.0  # focusing parameter in focal loss\n    pi_logratios = policy_chosen_logps - policy_rejected_logps\n    ref_logratios = reference_chosen_logps - reference_rejected_logps\n    logits = pi_logratios - ref_logratios\n    pt = torch.sigmoid(self.beta * logits)\n    losses = -(1 - pt) ** gamma * torch.nn.functional.logsigmoid(self.beta * logits)\n    return losses\n"
+    },
+    {
+        "name": "exponential_loss_46",
+        "code": "def exponential_loss(\n    self,\n    policy_chosen_logps: torch.FloatTensor,\n    policy_rejected_logps: torch.FloatTensor,\n    reference_chosen_logps: torch.FloatTensor,\n    reference_rejected_logps: torch.FloatTensor,\n) -> torch.FloatTensor:\n    pi_logratios = policy_chosen_logps - policy_rejected_logps\n    ref_logratios = reference_chosen_logps - reference_rejected_logps\n    logits = pi_logratios - ref_logratios\n    losses = torch.exp(-self.beta * logits)\n    return losses\n"
+    },
+    {
+        "name": "squared_margin_loss",
+        "code": "def squared_margin_loss(\n    self,\n    policy_chosen_logps: torch.FloatTensor,\n    policy_rejected_logps: torch.FloatTensor,\n    reference_chosen_logps: torch.FloatTensor,\n    reference_rejected_logps: torch.FloatTensor,\n) -> torch.FloatTensor:\n    pi_logratios = policy_chosen_logps - policy_rejected_logps\n    ref_logratios = reference_chosen_logps - reference_rejected_logps\n    logits = pi_logratios - ref_logratios\n    margin = 1.0  # constant margin\n    losses = (torch.clamp(margin - self.beta * logits, min=0.0)) ** 2\n    return losses\n"
+    },
+    {
+        "name": "focal_like_loss_v3",
+        "code": "def focal_like_loss(\n    self,\n    policy_chosen_logps: torch.FloatTensor,\n    policy_rejected_logps: torch.FloatTensor,\n    reference_chosen_logps: torch.FloatTensor,\n    reference_rejected_logps: torch.FloatTensor,\n) -> torch.FloatTensor:\n    gamma = 2.0  # focusing parameter for focal loss\n    pi_logratios = policy_chosen_logps - policy_rejected_logps\n    ref_logratios = reference_chosen_logps - reference_rejected_logps\n    logits = pi_logratios - ref_logratios\n    probabilities = torch.sigmoid(self.beta * logits)\n    modulating_factor = (1 - probabilities) ** gamma\n    losses = -modulating_factor * torch.nn.functional.logsigmoid(self.beta * logits)\n    return losses\n"
+    },
+    {
+        "name": "margin_sigmoid_loss",
+        "code": "def margin_sigmoid_loss(\n    self,\n    policy_chosen_logps: torch.FloatTensor,\n    policy_rejected_logps: torch.FloatTensor,\n    reference_chosen_logps: torch.FloatTensor,\n    reference_rejected_logps: torch.FloatTensor,\n) -> torch.FloatTensor:\n    margin = 1.0  # A margin value to separate positive and negative examples\n    pi_logratios = policy_chosen_logps - policy_rejected_logps\n    ref_logratios = reference_chosen_logps - reference_rejected_logps\n    logits = pi_logratios - ref_logratios\n    # Adding margin and passing through sigmoid for stability\n    losses = torch.relu(margin - torch.sigmoid(self.beta * logits))\n    return losses\n"
+    },
+    {
+        "name": "basic_bce_loss",
+        "code": "def basic_bce_loss(\n    self,\n    policy_chosen_logps: torch.FloatTensor,\n    policy_rejected_logps: torch.FloatTensor,\n    reference_chosen_logps: torch.FloatTensor,\n    reference_rejected_logps: torch.FloatTensor,\n) -> torch.FloatTensor:\n    pi_logratios = policy_chosen_logps - policy_rejected_logps\n    ref_logratios = reference_chosen_logps - reference_rejected_logps\n    logits = pi_logratios - ref_logratios\n    # Assuming binary targets: chosen is 1, rejected is 0\n    losses = - ((logits * self.beta).clamp(min=0) - (logits * self.beta).exp().log1p() + logits.clamp(max=0))\n    return losses\n"
+    },
+    {
+        "name": "contrastive_loss_51",
+        "code": "def contrastive_loss(\n    self,\n    policy_chosen_logps: torch.FloatTensor,\n    policy_rejected_logps: torch.FloatTensor,\n    reference_chosen_logps: torch.FloatTensor,\n    reference_rejected_logps: torch.FloatTensor,\n) -> torch.FloatTensor:\n    margin = 1.0\n    pi_logratios = policy_chosen_logps - policy_rejected_logps\n    ref_logratios = reference_chosen_logps - reference_rejected_logps\n    logits = pi_logratios - ref_logratios\n    # Positive pairs contribute zero loss if logits > margin\n    positive_loss = torch.relu(margin - logits)\n    # Negative pairs do not contribute as they are inherently separated by logits calculation\n    losses = positive_loss  # No need for negative loss in this scenario\n    return losses\n"
+    },
+    {
+        "name": "focal_loss_direct",
+        "code": "def focal_loss(\n    self,\n    policy_chosen_logps: torch.FloatTensor,\n    policy_rejected_logps: torch.FloatTensor,\n    reference_chosen_logps: torch.FloatTensor,\n    reference_rejected_logps: torch.FloatTensor,\n) -> torch.FloatTensor:\n    pi_logratios = policy_chosen_logps - policy_rejected_logps\n    ref_logratios = reference_chosen_logps - reference_rejected_logps\n    logits = pi_logratios - ref_logratios\n    gamma = 2.0  # Focal loss hyperparameter\n    p_t = torch.sigmoid(self.beta * logits)\n    losses = -(1 - p_t) ** gamma * torch.nn.functional.logsigmoid(self.beta * logits)\n    return losses\n"
+    },
+    {
+        "name": "focal_loss_53",
+        "code": "def focal_loss(\n    self,\n    policy_chosen_logps: torch.FloatTensor,\n    policy_rejected_logps: torch.FloatTensor,\n    reference_chosen_logps: torch.FloatTensor,\n    reference_rejected_logps: torch.FloatTensor,\n) -> torch.FloatTensor:\n    import torch.nn.functional as F\n    gamma = 2  # Focusing parameter for mitigating easy sample dominance\n    pi_logratios = policy_chosen_logps - policy_rejected_logps\n    ref_logratios = reference_chosen_logps - reference_rejected_logps\n    logits = pi_logratios - ref_logratios\n    probas = torch.sigmoid(self.beta * logits)\n    losses = -(1 - probas) ** gamma * F.logsigmoid(self.beta * logits)\n    return losses\n"
+    },
+    {
+        "name": "margin_ranking_loss_54",
+        "code": "def margin_ranking_loss(\n    self,\n    policy_chosen_logps: torch.FloatTensor,\n    policy_rejected_logps: torch.FloatTensor,\n    reference_chosen_logps: torch.FloatTensor,\n    reference_rejected_logps: torch.FloatTensor,\n) -> torch.FloatTensor:\n    margin = 1.0  # the margin value for the ranking loss\n    pi_logratios = policy_chosen_logps - policy_rejected_logps\n    ref_logratios = reference_chosen_logps - reference_rejected_logps\n    logits = pi_logratios - ref_logratios\n    losses = torch.clamp(margin - self.beta * logits, min=0)\n    return losses\n"
+    },
+    {
+        "name": "contrastive_loss_55",
+        "code": "def contrastive_loss(\n    self,\n    policy_chosen_logps: torch.FloatTensor,\n    policy_rejected_logps: torch.FloatTensor,\n    reference_chosen_logps: torch.FloatTensor,\n    reference_rejected_logps: torch.FloatTensor,\n) -> torch.FloatTensor:\n    margin = 1.0  # margin for contrastive loss\n    pi_logratios = policy_chosen_logps - policy_rejected_logps\n    ref_logratios = reference_chosen_logps - reference_rejected_logps\n    logits = pi_logratios - ref_logratios\n    # Positive pairs when preferred is closer\n    positive_loss = (logits ** 2)\n    # Negative pairs should have greater distance than margin\n    negative_loss = torch.clamp(margin - logits, min=0) ** 2\n    # Mix positive and negative loss\n    losses = positive_loss + negative_loss\n    return losses\n"
+    },
+    {
+        "name": "focal_loss_56",
+        "code": "def focal_loss(\n    self,\n    policy_chosen_logps: torch.FloatTensor,\n    policy_rejected_logps: torch.FloatTensor,\n    reference_chosen_logps: torch.FloatTensor,\n    reference_rejected_logps: torch.FloatTensor,\n) -> torch.FloatTensor:\n    import torch.nn.functional as F\n    gamma = 2.0  # Focal loss hyperparameter\n    pi_logratios = policy_chosen_logps - policy_rejected_logps\n    ref_logratios = reference_chosen_logps - reference_rejected_logps\n    logits = pi_logratios - ref_logratios\n    sigmoid_logits = torch.sigmoid(logits)\n    # Compute focal loss\n    losses = -(1 - sigmoid_logits) ** gamma * F.logsigmoid(logits)\n    return losses\n"
+    },
+    {
+        "name": "weighted_cross_entropy_loss",
+        "code": "def weighted_cross_entropy_loss(\n    self,\n    policy_chosen_logps: torch.FloatTensor,\n    policy_rejected_logps: torch.FloatTensor,\n    reference_chosen_logps: torch.FloatTensor,\n    reference_rejected_logps: torch.FloatTensor,\n) -> torch.FloatTensor:\n    import torch.nn.functional as F\n    epsilon = 1e-12  # Small constant for numerical stability\n    pos_weight = 0.7  # Weight for positive samples (chosen completions)\n    neg_weight = 0.3  # Weight for negative samples (rejected completions)\n    pi_logratios = policy_chosen_logps - policy_rejected_logps\n    ref_logratios = reference_chosen_logps - reference_rejected_logps\n    logits = pi_logratios - ref_logratios\n    # Compute probabilities\n    probabilities = torch.sigmoid(logits)\n    # Compute weighted cross-entropy\n    losses = - (pos_weight * torch.log(probabilities + epsilon) + \n               neg_weight * torch.log(1 - probabilities + epsilon))\n    return losses\n"
+    },
+    {
+        "name": "soft_margin_loss",
+        "code": "def soft_margin_loss(\n    self,\n    policy_chosen_logps: torch.FloatTensor,\n    policy_rejected_logps: torch.FloatTensor,\n    reference_chosen_logps: torch.FloatTensor,\n    reference_rejected_logps: torch.FloatTensor,\n) -> torch.FloatTensor:\n    import torch.nn.functional as F\n    stability_factor = 1e-6  # Small constant for numerical stability\n    pi_logratios = policy_chosen_logps - policy_rejected_logps\n    ref_logratios = reference_chosen_logps - reference_rejected_logps\n    logits = pi_logratios - ref_logratios\n    # Apply soft margin loss by using a stable log(1 + exp(-x)) approximation\n    losses = torch.log1p(torch.exp(-logits)) + stability_factor\n    return losses\n"
+    },
+    {
+        "name": "margin_ranking_loss_59",
+        "code": "def margin_ranking_loss(\n    self,\n    policy_chosen_logps: torch.FloatTensor,\n    policy_rejected_logps: torch.FloatTensor,\n    reference_chosen_logps: torch.FloatTensor,\n    reference_rejected_logps: torch.FloatTensor,\n) -> torch.FloatTensor:\n    margin = 1.0  # Margin value\n    pi_logratios = policy_chosen_logps - policy_rejected_logps\n    ref_logratios = reference_chosen_logps - reference_rejected_logps\n    logits = pi_logratios - ref_logratios\n    # Apply margin ranking loss: max(0, margin - logits)\n    losses = torch.relu(margin - logits)\n    return losses\n"
+    },
+    {
+        "name": "focal_loss_60",
+        "code": "def focal_loss(\n    self,\n    policy_chosen_logps: torch.FloatTensor,\n    policy_rejected_logps: torch.FloatTensor,\n    reference_chosen_logps: torch.FloatTensor,\n    reference_rejected_logps: torch.FloatTensor,\n) -> torch.FloatTensor:\n    gamma = 2.0  # Focal loss focusing parameter\n    pi_logratios = policy_chosen_logps - policy_rejected_logps\n    ref_logratios = reference_chosen_logps - reference_rejected_logps\n    logits = pi_logratios - ref_logratios\n    probs = torch.sigmoid(self.beta * logits)\n    losses = -(1 - probs) ** gamma * torch.log(probs)\n    return losses\n"
+    },
+    {
+        "name": "exponential_loss_61",
+        "code": "def exponential_loss(\n    self,\n    policy_chosen_logps: torch.FloatTensor,\n    policy_rejected_logps: torch.FloatTensor,\n    reference_chosen_logps: torch.FloatTensor,\n    reference_rejected_logps: torch.FloatTensor,\n) -> torch.FloatTensor:\n    pi_logratios = policy_chosen_logps - policy_rejected_logps\n    ref_logratios = reference_chosen_logps - reference_rejected_logps\n    logits = pi_logratios - ref_logratios\n    losses = torch.exp(-self.beta * logits)\n    return losses\n"
+    },
+    {
+        "name": "rank_margin_loss",
+        "code": "def rank_margin_loss(\n    self,\n    policy_chosen_logps: torch.FloatTensor,\n    policy_rejected_logps: torch.FloatTensor,\n    reference_chosen_logps: torch.FloatTensor,\n    reference_rejected_logps: torch.FloatTensor,\n) -> torch.FloatTensor:\n    margin = 0.1  # Define a small margin for rank separation\n    pi_logratios = policy_chosen_logps - policy_rejected_logps\n    ref_logratios = reference_chosen_logps - reference_rejected_logps\n    logits = pi_logratios - ref_logratios\n    losses = torch.relu(margin - logits)\n    return losses\n"
+    },
+    {
+        "name": "jsd_loss",
+        "code": "def jsd_loss(\n    self,\n    policy_chosen_logps: torch.FloatTensor,\n    policy_rejected_logps: torch.FloatTensor,\n    reference_chosen_logps: torch.FloatTensor,\n    reference_rejected_logps: torch.FloatTensor,\n) -> torch.FloatTensor:\n    m_chosen = 0.5 * (policy_chosen_logps + reference_chosen_logps)\n    m_rejected = 0.5 * (policy_rejected_logps + reference_rejected_logps)\n    kl_chosen = policy_chosen_logps * (policy_chosen_logps - m_chosen)\n    kl_rejected = policy_rejected_logps * (policy_rejected_logps - m_rejected)\n    jsd = 0.5 * (kl_chosen + kl_rejected)\n    losses = self.beta * jsd\n    return losses\n"
+    },
+    {
+        "name": "squared_hinge_loss_64",
+        "code": "def squared_hinge_loss(\n    self,\n    policy_chosen_logps: torch.FloatTensor,\n    policy_rejected_logps: torch.FloatTensor,\n    reference_chosen_logps: torch.FloatTensor,\n    reference_rejected_logps: torch.FloatTensor,\n) -> torch.FloatTensor:\n    pi_logratios = policy_chosen_logps - policy_rejected_logps\n    ref_logratios = reference_chosen_logps - reference_rejected_logps\n    logits = pi_logratios - ref_logratios\n    margin = 1 - self.beta * logits\n    losses = torch.square(torch.clamp(margin, min=0))\n    return losses\n"
+    },
+    {
+        "name": "least_squares_loss",
+        "code": "def least_squares_loss(\n    self,\n    policy_chosen_logps: torch.FloatTensor,\n    policy_rejected_logps: torch.FloatTensor,\n    reference_chosen_logps: torch.FloatTensor,\n    reference_rejected_logps: torch.FloatTensor,\n) -> torch.FloatTensor:\n    pi_logratios = policy_chosen_logps - policy_rejected_logps\n    ref_logratios = reference_chosen_logps - reference_rejected_logps\n    logits = pi_logratios - ref_logratios\n    # Squaring the differences, scaling by beta, to accommodate regression like smooth loss.\n    losses = self.beta * (logits - 1) ** 2\n    return losses"
+    }
+]

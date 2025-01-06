@@ -21,7 +21,7 @@ import torch
 import transformers
 from transformers import AutoModelForCausalLM, set_seed
 
-from alignment import (
+from src.alignment import (
     DataArguments,
     DPOConfig,
     H4ArgumentParser,
@@ -235,10 +235,10 @@ def main():
     trainer = GPOTrainer(
         model,
         ref_model,
-        model_init_kwargs=model_kwargs,
-        ref_model_init_kwargs=ref_model_kwargs,
+        # model_init_kwargs=model_kwargs,
+        # ref_model_init_kwargs=ref_model_kwargs,
         args=training_args,
-        beta=training_args.beta,
+        # beta=training_args.beta,
         train_dataset=raw_datasets["train"],
         eval_dataset=raw_datasets["test"],
         tokenizer=tokenizer,

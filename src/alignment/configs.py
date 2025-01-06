@@ -260,6 +260,14 @@ class DPOConfig(transformers.TrainingArguments):
         default=0.1,
         metadata={"help": "The beta factor in DPO loss. Higher beta means less divergence from the initial policy."},
     )
+    model_init_kwargs: Optional[Dict[str, Any]] = field(
+        default=None,
+        metadata={"help": "Arguments to initialize the model."},
+    )
+    ref_model_init_kwargs: Optional[Dict[str, Any]] = field(
+        default=None,
+        metadata={"help": "Arguments to initialize the reference model."},
+    )
     hub_model_revision: Optional[str] = field(
         default="main",
         metadata={"help": ("The Hub model branch to push the model to.")},

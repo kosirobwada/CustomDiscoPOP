@@ -8,8 +8,23 @@ from trl import DPOTrainer
 
 class GPOTrainer(DPOTrainer):
     def __init__(self, *args, func=lambda: None, **kwargs):
-        super().__init__(*args, **kwargs)
+        self.beta = kwargs.pop("beta", 0.1)
+        self.loss_type = kwargs.pop("loss_type", "sigmoid")
+        self.max_length = kwargs.pop("max_length", None)
+        self.max_prompt_length = kwargs.pop("max_prompt_length", None)
+        self.peft_config = kwargs.pop("peft_config", None)
         self.func = func
+        allowed_keys = [
+            "model", "ref_model", "args", "data_collator",
+            "train_dataset", "eval_dataset", "tokenizer",
+            "model_init", "compute_metrics", "callbacks",
+            "optimizers", "preprocess_logits_for_metrics"
+        ]
+        filtered_kwargs = {key: kwargs[key] for key in kwargs if key in allowed_keys}
+        if "args" in kwargs:
+            kwargs["args"].model_init_kwargs = kwargs.get("model_init_kwargs", {})
+
+        super().__init__(*args, **filtered_kwargs)
 
     def gpo_loss(
         self,
@@ -536,50 +551,3 @@ class GPOTrainer(DPOTrainer):
         )
 
         return losses, chosen_rewards, rejected_rewards
-
-        # The beta is a temperature parameter for the DPO loss, typically something in the range of 0.1 to 0.5.
-        # We ignore the reference model as beta -> 0. The label_smoothing parameter encodes our uncertainty about the labels and
-        # calculates a conservative DPO loss.
-
-        # if self.loss_type == "sigmoid":
-        #     losses = (
-        #         -F.logsigmoid(self.beta * logits) * (1 - self.label_smoothing)
-        #         - F.logsigmoid(-self.beta * logits) * self.label_smoothing
-        #     )
-        # elif self.loss_type == "hinge":
-        #     losses = torch.relu(1 - self.beta * logits)
-        # elif self.loss_type == "ipo":
-        #     # eqn (17) of the paper where beta is the regularization parameter for the IPO loss, denoted by tau in the paper.
-        #     losses = (logits - 1 / (2 * self.beta)) ** 2
-        # elif self.loss_type == "kto_pair":
-        #     # eqn (7) of the HALOs paper
-        #     chosen_KL = (policy_chosen_logps - reference_chosen_logps).mean().clamp(min=0)
-        #     rejected_KL = (policy_rejected_logps - reference_rejected_logps).mean().clamp(min=0)
-
-        #     chosen_logratios = policy_chosen_logps - reference_chosen_logps
-        #     rejected_logratios = policy_rejected_logps - reference_rejected_logps
-        #     # As described in the KTO report, the KL term for chosen (rejected) is estimated using the rejected (chosen) half.
-        #     losses = torch.cat(
-        #         (
-        #             1 - F.sigmoid(self.beta * (chosen_logratios - rejected_KL)),
-        #             1 - F.sigmoid(self.beta * (chosen_KL - rejected_logratios)),
-        #         ),
-        #         0,
-        #     )
-        # elif self.loss_type == "bco_pair":
-        #     chosen_logratios = policy_chosen_logps - reference_chosen_logps
-        #     rejected_logratios = policy_rejected_logps - reference_rejected_logps
-
-        #     chosen_rewards = self.beta * chosen_logratios
-        #     rejected_rewards = self.beta * rejected_logratios
-        #     rewards = torch.cat((chosen_rewards, rejected_rewards), 0).mean().detach()
-        #     self.running.update(rewards)
-        #     delta = self.running.mean
-
-        #     losses = -F.logsigmoid((self.beta * chosen_logratios) - delta) - F.logsigmoid(
-        #         -(self.beta * rejected_logratios - delta)
-        #     )
-        # else:
-        #     raise ValueError(
-        #         f"Unknown loss type: {self.loss_type}. Should be one of ['sigmoid', 'hinge', 'ipo', 'kto_pair', 'bco_pair', 'gpo']"
-        #     )
